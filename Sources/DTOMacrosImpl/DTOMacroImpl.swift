@@ -5,11 +5,19 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-
 public enum MacroName {
     public static let ConvertDTOType = "ConvertDTOType"
     public static let DecodableFromDTO = "DecodableFromDTO"
     public static let ConvertFromDTO = "ConvertFromDTO"
+}
+
+public enum DTOTokenSyntax {
+    public static let DTO = TokenSyntax("DTO")
+}
+
+public enum DTOTokenName {
+    public static let DTO = "DTO"
+    public static let dto = "dto"
 }
 
 public struct ConvertDTOMacro: PeerMacro {
@@ -21,6 +29,11 @@ public struct ConvertDTOMacro: PeerMacro {
     }
 }
 
+public struct ConvertFromDTOMacro: PeerMacro {
+    public static func expansion(of node: AttributeSyntax, providingPeersOf declaration: some DeclSyntaxProtocol, in context: some MacroExpansionContext) throws -> [DeclSyntax] {
+        return []
+    }
+}
 
 public struct DecodableFromDTOMacro: ExtensionMacro {
     
@@ -52,7 +65,7 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
             ofType: type,
             withProtocol: ["DecodableFromDTOProtocol"],
             members: [
-                SC.createStruct(accessor: .public, typeName: "DTO", members: MemberBlockItemListSyntax(properties), types: ["Decodable"]),
+                SC.createStruct(accessor: .public, typeName: DTOTokenName.DTO, members: MemberBlockItemListSyntax(properties), types: ["Decodable"]),
                 SC.createStruct(accessor: .private, typeName: "DTOConversionProcessor", members: MemberBlockItemListSyntax(convertors)),
                 createInit(propertyInfo: membersInfo)
             ]
@@ -72,14 +85,15 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
               let type = bindings.typeAnnotation
         else { return nil }
         
-        let hasConvertType = SU.has(attributeNamed: "ConvertDTOType", in: varDecl)
+        let hasConvertDTOType = SU.has(attributeNamed: MacroName.ConvertFromDTO, in: varDecl)
+        let hasConvertType = SU.has(attributeNamed: MacroName.ConvertDTOType, in: varDecl) || hasConvertDTOType
         
         return parsedVariableInfo(
             hasConvertType: hasConvertType,
-            convertInfo: MacroUtils.getConvertInfo(from: varDecl),
+            convertInfo: hasConvertDTOType ? MacroUtils.getConvertDTOInfo(from: type) : MacroUtils.getConvertInfo(from: varDecl),
             name: identifier.text,
             type: type,
-            debug: nil
+            debug: "\(identifier.text) type : \(type.type.debugDescription)"
         )
     }
     
@@ -123,7 +137,7 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
         }
         return SC.createInitMethod(
             accessor: .public,
-            parameters: [SC.createFuncParam(label: "from", paramName: "dto", type: "DTO")],
+            parameters: [SC.createFuncParam(label: "from", paramName: DTOTokenName.dto, type: DTOTokenName.DTO)],
             statements: assignments
         )
     }
@@ -150,6 +164,7 @@ struct DTOMacroPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
         DecodableFromDTOMacro.self,
         ConvertDTOMacro.self,
+        ConvertFromDTOMacro.self,
     ]
 }
 
@@ -157,6 +172,7 @@ internal struct ConvertInfo {
     fileprivate let sourceType: TypeAnnotationSyntax
     fileprivate let destinationType: TypeAnnotationSyntax
     fileprivate let convertClosure: ClosureExprSyntax
+    fileprivate var debug: String = ""
 }
 
 internal struct parsedVariableInfo {
@@ -185,6 +201,31 @@ internal enum MacroUtils {
         return getConvertInfo(from: convertAttribute)
     }
     
+    internal static func getConvertDTOInfo(from varType: TypeAnnotationSyntax) -> ConvertInfo? {
+       
+        var rootType = varType.type
+        var isOptional = false
+        if let optionalType = varType.type.as(OptionalTypeSyntax.self) {
+            rootType = optionalType.wrappedType
+            isOptional = true
+        }
+        
+        let dtoType = "\(rootType).DTO\( isOptional ? "?" : "")"
+        let sourceType = TypeAnnotationSyntax(type: TypeSyntax(stringLiteral: dtoType))
+        
+        return ConvertInfo(
+            sourceType: sourceType,
+            destinationType: varType,
+            convertClosure: ClosureExprSyntax(
+                signature: ClosureSignatureSyntax(
+                    parameterClause: SC.createClosureCallParamters(withName: DTOTokenName.dto),
+                    returnClause: ReturnClauseSyntax(varType)
+                ),
+                statements: CodeBlockItemListSyntax(stringLiteral: isOptional ? "\(DTOTokenName.dto).map{\(rootType)(from: $0)}" : "\(rootType)(from: \(DTOTokenName.dto)")
+            ),
+            debug: "dto: \(dtoType) optional : \(isOptional)"
+        )
+    }
     
     internal static func getConvertInfo(from attribute: AttributeSyntax) -> ConvertInfo?{
         guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self),

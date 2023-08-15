@@ -28,10 +28,20 @@ internal struct SyntaxCreator {
             parameterClause: FunctionParameterClauseSyntax(
                 parameters:
                     FunctionParameterListSyntax([
-                        FunctionParameterSyntax(firstName: SyntaxCreator.create(name: "from"), secondName: SyntaxCreator.create(name: "dto"), type: IdentifierTypeSyntax(name:"DTO"))
+                        FunctionParameterSyntax(firstName: SyntaxCreator.create(name: "from"), secondName: SyntaxCreator.create(name: DTOTokenName.dto), type: IdentifierTypeSyntax(name:DTOTokenSyntax.DTO))
                     ])
             )
         )
+    }
+    internal static func createClosureCallParamters(withName name: String) -> ClosureSignatureSyntax.ParameterClause{
+        return createClosureCallParamters(withNames: [name])
+    }
+    
+    internal static func createClosureCallParamters(withNames names: [String]) -> ClosureSignatureSyntax.ParameterClause{
+        let params = names.map { name in
+            ClosureParameterSyntax(firstName: TokenSyntax(stringLiteral: name))
+        }
+        return ClosureSignatureSyntax.ParameterClause(ClosureParameterClauseSyntax(parameters: ClosureParameterListSyntax(params)))
     }
     
     internal static func createFuncParam(label: String, paramName:String? = nil, type: String) -> FunctionParameterSyntax {

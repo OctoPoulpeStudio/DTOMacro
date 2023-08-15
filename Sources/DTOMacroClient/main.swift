@@ -91,7 +91,7 @@ public struct Payment {
     public let fiscalReceiptGenerated: Bool
     public let payerFirstName: String
     public let payerLastName: String
-    public let state: State
+    public let state: Payment.State
     public let userId: Int
     public let userFirstName: String
     public let userLastName: String
@@ -100,7 +100,7 @@ public struct Payment {
     public let providerTitle: String
     public let installmentNumber: Int
     public let meta: ApiMetaData
-    @ConvertDTOType(from: PaymentRefundOperation.DTO?, to: PaymentRefundOperation?, convert: { dto in dto.flatMap { PaymentRefundOperation(from: $0) } })
+    @ConvertFromDTO
     public let refundOperations: PaymentRefundOperation?
 }
 
@@ -145,6 +145,11 @@ public extension Payment {
 }
 
 
+public struct WrappedType {
+    public struct InnerType {
+        var test:String
+    }
+}
 
 
 public struct ApiMetaData: Codable, Equatable {
