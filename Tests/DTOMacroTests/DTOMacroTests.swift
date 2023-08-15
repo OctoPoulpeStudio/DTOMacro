@@ -1,23 +1,15 @@
 import SwiftSyntaxMacros
 import SwiftSyntaxMacrosTestSupport
 import XCTest
-import DTOMacroMacros
+import DTOMacrosImpl
 
 let testMacros: [String: Macro.Type] = [
-    "stringify": StringifyMacro.self,
+    "DecodableFromDTO": DecodableFromDTOMacro.self,
 ]
 
 final class DTOMacroTests: XCTestCase {
     func testMacro() {
-        assertMacroExpansion(
-            """
-            #stringify(a + b)
-            """,
-            expandedSource: """
-            (a + b, "a + b")
-            """,
-            macros: testMacros
-        )
+        
     }
 
     func testMacroWithStringLiteral() {

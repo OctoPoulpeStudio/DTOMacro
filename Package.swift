@@ -31,16 +31,17 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         // Macro implementation that performs the source transformation of a macro.
         .macro(
-            name: "DTOMacroMacros",
+            name: "DTOMacrosImpl",
             dependencies: [
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+                .product(name: "SwiftDiagnostics", package: "swift-syntax"),
                 "DTOTypes"
             ]
         ),
 
         // Library that exposes a macro as part of its API, which is used in client programs.
-        .target(name: "DTOMacro", dependencies: ["DTOMacroMacros", "DTOTypes"]),
+        .target(name: "DTOMacro", dependencies: ["DTOMacrosImpl", "DTOTypes"]),
         // Library that exposes the supporting types of a macro.
         .target(name: "DTOTypes"),
 
@@ -51,7 +52,7 @@ let package = Package(
         .testTarget(
             name: "DTOMacroTests",
             dependencies: [
-                "DTOMacroMacros",
+                "DTOMacrosImpl",
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
         ),

@@ -10,20 +10,11 @@ import DTOTypes
 // @freestanding(expression)
 // public macro stringify<T>(_ value: T) -> (T, String) = #externalMacro(module: "DTOMacroMacros", type: "StringifyMacro")
 
-import Foundation
-public extension String {
-    func toDate() -> Date? {
-        let formatter = ISO8601DateFormatter()
-        if contains(".") {
-            formatter.formatOptions.insert(.withFractionalSeconds)
-        }
-        return formatter.date(from: self)
-    }
-}
-
 @attached(conformance)
-@attached(member, names: arbitrary)
-public macro DecodableFromDTO() = #externalMacro(module: "DTOMacroMacros", type: "DecodableFromDTOMacro")
+public macro DecodableFromDTO() = #externalMacro(module: "DTOMacrosImpl", type: "DecodableFromDTOMacro")
 
-@attached(member, names: arbitrary)
-public macro ConvertDTOType<SourceType, DestinationType>(from:SourceType.Type, to: DestinationType.Type, convert: (SourceType)->DestinationType) = #externalMacro(module: "DTOMacroMacros", type: "ConvertDTOMacro")
+@attached(peer)
+public macro ConvertDTOType<SourceType, DestinationType>(from:SourceType.Type, to: DestinationType.Type, convert: (SourceType)->DestinationType) = #externalMacro(module: "DTOMacrosImpl", type: "ConvertDTOMacro")
+
+@attached(peer)
+public macro ConvertFromDTO() = #externalMacro(module: "DTOMacrosImpl", type: "ConvertFromDTOMacro")
