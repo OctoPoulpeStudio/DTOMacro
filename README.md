@@ -6,6 +6,10 @@ A Swift Macro that generate DTOs.
 - provides protocol `DecodableFromDTOProtocol` for DTO to easily encapsulate data
 - Provides an extension to decode object from DTO directly with JSONDecoder
 - Generate boilerplate code for type conversion through DTOs
+	- Provides `@DecodableFromDTO` that does the code generation
+ 	- provides `@ConvertDTOType(from: SourceType, to: BusinessDataType, convert: ConversionClosure)` that give information on how to convert data from one type to another
+ 	- Provides `@ConvertFromDTO` a shorten version of the previous one for properties that are generated from DTOs
+  	- provides `@DTOProperty(name: "a_name")` to change the name of the DTO property to feat the received data 
 
 ## Prerequisites
 
@@ -38,6 +42,7 @@ struct MyData {
 }
 ```
 3. Add one of the conversion attribute  to the properties you want to convert.
+
 3.1. `@ConvertDTOType(from: SourceType, to: BusinessDataType, convert: ConversionClosure)` 
 	- SourceType : the type of the data you received
 	- BusinessType : the type of the property you want to convert
@@ -51,7 +56,7 @@ struct MyData {
 	let birthday:Date?
 }
 ```
-3.2. `@ConvertFromDTO `to automatically convert an object that is created from DTO as well
+3.2. `@ConvertFromDTO` to automatically convert an object that is created from DTO as well
 
 ```Swift 
 @DecodableFromDTO
@@ -90,7 +95,39 @@ extension MyData: DecodableFromDTOProtocol {
     }
 }
 ```
- 
+ 4. You can also use the `@DTOProperty(name: "a_name")` attribute to change the name of a property in the DTO object to reflect the one you receive, similarly to using `CodingKeys`
+
+Like this : 
+```Swift
+@DecodableFromDTO
+struct MyData {
+    @DTOProperty(name: "a_name")
+    let name: String
+    @DTOProperty(name: "date_of_birth")
+    @ConvertDTOType(from: String, to: Date?, convert: { ISO8601DateFormatter().date(from:$0)})
+    let birthdate: Date?
+}
+```
+it will expand to : 
+
+```Swift
+extension MyData: DecodableFromDTOProtocol {
+    public struct DTO: Decodable {
+        public let a_name: String
+        public let date_of_birth: String
+    }
+    private struct DTOConversionProcessor {
+        fileprivate static var date_of_birth: (String) -> Date? = {
+            ISO8601DateFormatter().date(from: $0)
+        }
+    }
+    public init(from dto: DTO) {
+        self.name = dto.a_name
+        self.birthdate = DTOConversionProcessor.date_of_birth(dto.date_of_birth)
+    }
+}
+```
+
 
 ## Detailed Explanation
 
