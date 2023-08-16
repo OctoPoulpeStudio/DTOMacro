@@ -30,6 +30,7 @@ public enum MacroName {
     public static let ConvertDTOType = "ConvertDTOType"
     public static let DecodableFromDTO = "DecodableFromDTO"
     public static let ConvertFromDTO = "ConvertFromDTO"
+    public static let DTOPropertyName = "DTOProperty"
 }
 
 public enum DTOTokenSyntax {
@@ -56,6 +57,12 @@ public struct ConvertFromDTOMacro: PeerMacro {
     }
 }
 
+public struct DTOPropertyNameMacro: PeerMacro {
+    public static func expansion(of node: AttributeSyntax, providingPeersOf declaration: some DeclSyntaxProtocol, in context: some MacroExpansionContext) throws -> [DeclSyntax] {
+        return []
+    }
+}
+
 public struct DecodableFromDTOMacro: ExtensionMacro {
     
     public static func expansion(
@@ -65,7 +72,7 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
     ) throws -> [(TypeSyntax, GenericWhereClauseSyntax?)] {
         [("DecodableFromDTOProtocol", nil)]
     }
-    
+   
     public static func expansion(
         of node: AttributeSyntax,
         attachedTo declaration: some DeclGroupSyntax,
@@ -73,7 +80,7 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        let membersInfo: [parsedVariableInfo] = convert(type: declaration)
+        let membersInfo: [ParsedVariableInfo] = convert(type: declaration)
         let (convertors, properties) = extract(from: membersInfo)
         
         for diagnostic in membersInfo.flatMap({ parsedVariableInfo in
@@ -94,12 +101,12 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
         return [result]
     }
     
-    private static func convert(type declaration: some DeclGroupSyntax) -> [parsedVariableInfo] {
+    private static func convert(type declaration: some DeclGroupSyntax) -> [ParsedVariableInfo] {
         guard let structDecl: StructDeclSyntax = declaration.as(StructDeclSyntax.self) else {return []}
         return structDecl.memberBlock.members.compactMap (convert(member:))
     }
     
-    private static func convert(member: MemberBlockItemSyntax) -> parsedVariableInfo? {
+    private static func convert(member: MemberBlockItemSyntax) -> ParsedVariableInfo? {
         guard let varDecl = member.decl.as(VariableDeclSyntax.self),
               let bindings = varDecl.bindings.first,
               let identifier = bindings.pattern.as(IdentifierPatternSyntax.self)?.identifier,
@@ -109,18 +116,19 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
         let hasConvertDTOType = SU.has(attributeNamed: MacroName.ConvertFromDTO, in: varDecl)
         let hasConvertType = SU.has(attributeNamed: MacroName.ConvertDTOType, in: varDecl) || hasConvertDTOType
         
-        return parsedVariableInfo(
+        return ParsedVariableInfo(
             hasConvertType: hasConvertType,
             convertInfo: hasConvertDTOType ? MacroUtils.getConvertDTOInfo(from: type) : MacroUtils.getConvertInfo(from: varDecl),
-            name: identifier.text,
+            businessName: identifier.text,
+            dtoName: MacroUtils.getDTOPropertyName(from: varDecl),
             type: type,
-            debug: "\(identifier.text) type : \(type.type.debugDescription)"
+            debug: "\(identifier.text) dtoName : \(String(describing: MacroUtils.getDTOPropertyName(from: varDecl)))"
         )
     }
     
     
     
-    private static func extract(from membersInfo: [parsedVariableInfo]) -> (convertors: [MemberBlockItemSyntax], properties: [MemberBlockItemSyntax]) {
+    private static func extract(from membersInfo: [ParsedVariableInfo]) -> (convertors: [MemberBlockItemSyntax], properties: [MemberBlockItemSyntax]) {
         membersInfo.reduce((convertors: [MemberBlockItemSyntax](), properties: [MemberBlockItemSyntax]())) { partialResult, info in
             var convertors = partialResult.convertors
             var properties = partialResult.properties
@@ -129,7 +137,7 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
                 SC.createVariableDecl(
                     accessors:[.fileprivate, .static],
                     isVar: true,
-                    name:info.name ,
+                    name:info.dtoName ,
                     type: SC.createClosureType(parameterTypes: [convertInfo.sourceType], returnType: info.type),
                     value: convertInfo.convertClosure
                 )
@@ -139,7 +147,7 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
                 convertors.append(MemberBlockItemSyntax(decl:convertor))
             }
             
-            let property = SC.createVariableDecl(accessor:.public, name:info.name ,type: (info.convertInfo?.sourceType ?? info.type))
+            let property = SC.createVariableDecl(accessor:.public, name:info.dtoName ,type: (info.convertInfo?.sourceType ?? info.type))
             properties.append(MemberBlockItemSyntax(decl:property))
             
             return (convertors: convertors, properties: properties)
@@ -150,11 +158,11 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
         propertyName+"Convertor"
     }
     
-    private static func createInit(propertyInfo:[parsedVariableInfo])  -> MemberBlockItemSyntax {
+    private static func createInit(propertyInfo:[ParsedVariableInfo])  -> MemberBlockItemSyntax {
         var assignments = [CodeBlockItemSyntax]()
         for info in propertyInfo {
-            let value = info.convertInfo.map{_ in createConversionMethodCall(info)} ?? "dto." + info.name
-            assignments.append(SC.createInitAssignment(forVarNamed: info.name, value: value))
+            let value = info.convertInfo.map{_ in createConversionMethodCall(info)} ?? "dto." + info.dtoName
+            assignments.append(SC.createInitAssignment(forVarNamed: info.businessName, value: value))
         }
         return SC.createInitMethod(
             accessor: .public,
@@ -163,9 +171,9 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
         )
     }
                                
-    private static let createConversionMethodCall: (parsedVariableInfo) -> String = { info in
-        let processorMethodName = "DTOConversionProcessor.\(info.name)"
-        let parameter = "dto.\(info.name)"
+    private static let createConversionMethodCall: (ParsedVariableInfo) -> String = { info in
+        let processorMethodName = "DTOConversionProcessor.\(info.dtoName)"
+        let parameter = "dto.\(info.dtoName)"
         return "\(processorMethodName)(\(parameter))"
     }
     
@@ -186,6 +194,7 @@ struct DTOMacroPlugin: CompilerPlugin {
         DecodableFromDTOMacro.self,
         ConvertDTOMacro.self,
         ConvertFromDTOMacro.self,
+        DTOPropertyNameMacro.self,
     ]
 }
 
@@ -196,18 +205,20 @@ internal struct ConvertInfo {
     fileprivate var debug: String = ""
 }
 
-internal struct parsedVariableInfo {
+internal struct ParsedVariableInfo {
     fileprivate let hasConvertType: Bool
     fileprivate let convertInfo: ConvertInfo?
-    fileprivate let name: String
+    fileprivate let businessName: String
+    fileprivate let dtoName: String
     fileprivate let type: TypeAnnotationSyntax
     fileprivate let debug: String?
     fileprivate let diagnostics: [Diagnostic]
     
-    init(hasConvertType: Bool, convertInfo: ConvertInfo?, name: String, type: TypeAnnotationSyntax, debug: String?, diagnostics: [Diagnostic] = []) {
+    init(hasConvertType: Bool, convertInfo: ConvertInfo?, businessName: String, dtoName:String? = nil, type: TypeAnnotationSyntax, debug: String?, diagnostics: [Diagnostic] = []) {
         self.hasConvertType = hasConvertType
         self.convertInfo = convertInfo
-        self.name = name
+        self.businessName = businessName
+        self.dtoName = dtoName ?? businessName
         self.type = type
         self.debug = debug
         self.diagnostics = diagnostics
@@ -255,6 +266,16 @@ internal enum MacroUtils {
               let conversionClosure = getConvertConversionClosure(in: arguments) else {return nil}
         
         return ConvertInfo(sourceType: sourceType, destinationType: destinationType, convertClosure: conversionClosure)
+    }
+    
+    internal static func getDTOPropertyName(from varDecl: VariableDeclSyntax) -> String? {
+        guard let convertAttribute = SU.get(attributeNamed: MacroName.DTOPropertyName, in: varDecl),
+              let arguments = convertAttribute.arguments?.as(LabeledExprListSyntax.self),
+              let expr = SU.getParameterValue(in: arguments, for: "name"),
+              let DTONameLiteral = expr.as(StringLiteralExprSyntax.self),
+              let DTOName = DTONameLiteral.segments.first?.as(StringSegmentSyntax.self)?.content
+        else {return nil}
+        return DTOName.text
     }
     
     internal static func getConvertSourceType(in attribute: AttributeSyntax) -> TypeAnnotationSyntax? {

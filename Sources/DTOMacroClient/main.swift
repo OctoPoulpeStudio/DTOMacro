@@ -36,7 +36,9 @@ public extension String {
 
 @DecodableFromDTO
 struct MyData {
+    @DTOProperty(name: "a_name")
     let name: String
+    @DTOProperty(name: "date_of_birth")
     @ConvertDTOType(from: String, to: Date?, convert: { ISO8601DateFormatter().date(from:$0)})
     let birthdate: Date?
 }

@@ -23,7 +23,6 @@
 import DTOTypes
 import DTOMacrosImpl
 
-// TODO: Coding keys
 // TODO: a way to flatten the path to data : eg data.prop from data.group.prop
 @attached(extension, conformances: DecodableFromDTOProtocol, names: named(DTO),named(DTOConversionProcessor), named(init(from:)))
 public macro DecodableFromDTO() = #externalMacro(module: "DTOMacrosImpl", type: "DecodableFromDTOMacro")
@@ -33,3 +32,6 @@ public macro ConvertDTOType<SourceType, DestinationType>(from:SourceType.Type, t
 
 @attached(peer)
 public macro ConvertFromDTO() = #externalMacro(module: "DTOMacrosImpl", type: "ConvertFromDTOMacro")
+
+@attached(peer)
+public macro DTOProperty(name: String) = #externalMacro(module: "DTOMacrosImpl", type: "DTOPropertyNameMacro")
