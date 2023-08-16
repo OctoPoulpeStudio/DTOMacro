@@ -42,7 +42,7 @@ struct MyData {
 	- SourceType : the type of the data you received
 	- BusinessType : the type of the property you want to convert
 	- ConversionClosure :  An Explicite Closure to convert SourceType int BusinessType. 
-		- [!NOTE] : the body of the closure must be in the attribute since it is copied as a string by SwiftSyntaxt. 
+		- > [!NOTE] : the body of the closure must be in the attribute since it is copied as a string by SwiftSyntaxt. 
 ```Swift 
 @DecodableFromDTO
 struct MyData {
@@ -183,9 +183,9 @@ The idea is to create an `attached macro` that does all the work the `DecodableF
 Therefore the `DecodableFromDTO` is mandatory to get any code generation.
 and the other attributes `@ConvertDTOType(from: APIType, to: BusinessType, convert: ConversionClosure)` and  `@ConvertFromDTO` just give context to `DecodableFromDTO` but don't generate anything. 
 
- [!NOTE]  : 
-- that by using the macro system we can pass parameters and type check them.
-- these macros are also used to detect error in there usage.
+> [!NOTE]  : 
+> - that by using the macro system we can pass parameters and type check them.
+> - these macros are also used to detect error in there usage.
 
 ##### Macro creation
 
@@ -221,4 +221,4 @@ extension JSONDecoder {
 }
 ```
 
-[!NOTE] : the protocol and the extension have been created by Luis Recuenco and were taken from his article in [Better Programming](https://betterprogramming.pub/parsing-in-swift-a-dto-based-approach-5edca55eb57a)
+> [!NOTE] : the protocol and the extension have been created by Luis Recuenco and were taken from his article in [Better Programming](https://betterprogramming.pub/parsing-in-swift-a-dto-based-approach-5edca55eb57a)
