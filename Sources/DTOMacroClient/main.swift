@@ -34,7 +34,7 @@ public extension String {
     }
 }
 
-@DecodableFromDTO
+@DecodableFromDTO(access: .internal)
 struct MyData {
     @DTOProperty(name: "a_name")
     let name: String

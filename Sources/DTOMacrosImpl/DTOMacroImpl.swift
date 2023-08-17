@@ -26,6 +26,8 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
+let DefaultAccessor : Keyword = .internal
+
 public enum MacroName {
     public static let ConvertDTOType = "ConvertDTOType"
     public static let DecodableFromDTO = "DecodableFromDTO"
@@ -80,7 +82,10 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        let membersInfo: [ParsedVariableInfo] = convert(type: declaration)
+        let accessor = MacroUtils.getDTOAccessor(declaration: declaration)
+        
+        
+        let membersInfo: [ParsedVariableInfo] = convert(type: declaration, accessor: accessor)
         let (convertors, properties) = extract(from: membersInfo)
         
         for diagnostic in membersInfo.flatMap({ parsedVariableInfo in
@@ -101,12 +106,12 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
         return [result]
     }
     
-    private static func convert(type declaration: some DeclGroupSyntax) -> [ParsedVariableInfo] {
+    private static func convert(type declaration: some DeclGroupSyntax, accessor: Keyword = DefaultAccessor) -> [ParsedVariableInfo] {
         guard let structDecl: StructDeclSyntax = declaration.as(StructDeclSyntax.self) else {return []}
-        return structDecl.memberBlock.members.compactMap (convert(member:))
+        return structDecl.memberBlock.members.compactMap ({convert(member:$0,accessor:accessor)})
     }
     
-    private static func convert(member: MemberBlockItemSyntax) -> ParsedVariableInfo? {
+    private static func convert(member: MemberBlockItemSyntax, accessor: Keyword = DefaultAccessor) -> ParsedVariableInfo? {
         guard let varDecl = member.decl.as(VariableDeclSyntax.self),
               let bindings = varDecl.bindings.first,
               let identifier = bindings.pattern.as(IdentifierPatternSyntax.self)?.identifier,
@@ -117,6 +122,7 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
         let hasConvertType = SU.has(attributeNamed: MacroName.ConvertDTOType, in: varDecl) || hasConvertDTOType
         
         return ParsedVariableInfo(
+            accessor: accessor,
             hasConvertType: hasConvertType,
             convertInfo: hasConvertDTOType ? MacroUtils.getConvertDTOInfo(from: type) : MacroUtils.getConvertInfo(from: varDecl),
             businessName: identifier.text,
@@ -147,15 +153,11 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
                 convertors.append(MemberBlockItemSyntax(decl:convertor))
             }
             
-            let property = SC.createVariableDecl(accessor:.public, name:info.dtoName ,type: (info.convertInfo?.sourceType ?? info.type))
+            let property = SC.createVariableDecl(accessor:info.accessor, name:info.dtoName ,type: (info.convertInfo?.sourceType ?? info.type))
             properties.append(MemberBlockItemSyntax(decl:property))
             
             return (convertors: convertors, properties: properties)
         }
-    }
-    
-    private static func getPropertyConvertorName(for propertyName: String) -> String {
-        propertyName+"Convertor"
     }
     
     private static func createInit(propertyInfo:[ParsedVariableInfo])  -> MemberBlockItemSyntax {
@@ -165,7 +167,7 @@ public struct DecodableFromDTOMacro: ExtensionMacro {
             assignments.append(SC.createInitAssignment(forVarNamed: info.businessName, value: value))
         }
         return SC.createInitMethod(
-            accessor: .public,
+            accessor: .public ,
             parameters: [SC.createFuncParam(label: "from", paramName: DTOTokenName.dto, type: DTOTokenName.DTO)],
             statements: assignments
         )
@@ -206,6 +208,7 @@ internal struct ConvertInfo {
 }
 
 internal struct ParsedVariableInfo {
+    fileprivate let accessor: Keyword
     fileprivate let hasConvertType: Bool
     fileprivate let convertInfo: ConvertInfo?
     fileprivate let businessName: String
@@ -214,7 +217,8 @@ internal struct ParsedVariableInfo {
     fileprivate let debug: String?
     fileprivate let diagnostics: [Diagnostic]
     
-    init(hasConvertType: Bool, convertInfo: ConvertInfo?, businessName: String, dtoName:String? = nil, type: TypeAnnotationSyntax, debug: String?, diagnostics: [Diagnostic] = []) {
+    init(accessor: Keyword, hasConvertType: Bool, convertInfo: ConvertInfo?, businessName: String, dtoName:String? = nil, type: TypeAnnotationSyntax, debug: String?, diagnostics: [Diagnostic] = []) {
+        self.accessor = accessor
         self.hasConvertType = hasConvertType
         self.convertInfo = convertInfo
         self.businessName = businessName
@@ -226,6 +230,24 @@ internal struct ParsedVariableInfo {
 }
 
 internal enum MacroUtils {
+    
+    internal static func getDTOAccessor(declaration: DeclGroupSyntax)-> Keyword {
+        guard let attribute = SU.get(attributeNamed: MacroName.DecodableFromDTO, in: declaration.as(StructDeclSyntax.self)),
+              let labels = attribute.arguments?.as(LabeledExprListSyntax.self),
+              let accessor = SU.getParameterValue(in: labels, for: "access")?.as(MemberAccessExprSyntax.self)?.declName.baseName.text
+        else { return DefaultAccessor}
+        switch accessor {
+            case "public" :
+                return .public
+            case "internal" :
+                return .internal
+            case "fileprivate" :
+                return .fileprivate
+            default :
+                return DefaultAccessor
+        }
+    }
+    
     internal static func getConvertInfo(from varDecl: VariableDeclSyntax) -> ConvertInfo?{
         guard let convertAttribute = SU.get(attributeNamed: MacroName.ConvertDTOType, in: varDecl)
         else {return nil}

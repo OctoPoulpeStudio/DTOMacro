@@ -29,10 +29,18 @@
 import SwiftSyntax
 internal typealias SU = SyntaxUtils
 internal struct SyntaxUtils {
-    internal static func get(attributeNamed name: String, in varDecl: VariableDeclSyntax) -> AttributeSyntax? {
-        varDecl.attributes?.filter({filter(attributeNamed: name, element: $0)}).first?.as(AttributeSyntax.self)
+    
+    internal static func get(attributeNamed name: String, in structDecl: StructDeclSyntax?) -> AttributeSyntax? {
+        guard let structDecl else {return nil}
+        return structDecl.attributes?.filter({filter(attributeNamed: name, element: $0)}).first?.as(AttributeSyntax.self)
     }
-    internal static func has(attributeNamed name:String , in varDecl: VariableDeclSyntax) -> Bool {
+    
+    internal static func get(attributeNamed name: String, in varDecl: VariableDeclSyntax?) -> AttributeSyntax? {
+        guard let varDecl else {return nil}
+        return varDecl.attributes?.filter({filter(attributeNamed: name, element: $0)}).first?.as(AttributeSyntax.self)
+    }
+    internal static func has(attributeNamed name:String , in varDecl: VariableDeclSyntax?) -> Bool {
+        guard let varDecl else {return false}
         return !(varDecl.attributes?.filter{filter(attributeNamed: name, element: $0)}.isEmpty ?? true)
     }
     
