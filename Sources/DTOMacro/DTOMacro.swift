@@ -24,6 +24,11 @@ import DTOTypes
 import DTOMacrosImpl
 
 // TODO: a way to flatten the path to data : eg data.prop from data.group.prop
+
+// The default paramter is not used since we don't actually get the value of the paramter but a string representation of it.
+// when the default is used the string doesn't have any parameter
+// the only porpuse for us it to allow the user to not type the access parameter if not needed
+// the macro is using the global variable DefaultAccessor
 @attached(extension, conformances: DecodableFromDTOProtocol, names: named(DTO),named(DTOConversionProcessor), named(init(from:)))
 public macro DecodableFromDTO(access: DTOAccessibility = .internal) = #externalMacro(module: "DTOMacrosImpl", type: "DecodableFromDTOMacro")
 

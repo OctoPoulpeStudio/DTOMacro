@@ -26,7 +26,7 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-let DefaultAccessor : Keyword = .internal
+let DefaultAccessor : Keyword = .public
 
 public enum MacroName {
     public static let ConvertDTOType = "ConvertDTOType"
