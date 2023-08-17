@@ -127,7 +127,16 @@ extension MyData: DecodableFromDTOProtocol {
     }
 }
 ```
+### Advance features
+You can pass a `access` parameter to the `@DecodableFromDTO` attribute to define the accessibility of the DTO properties like follow : 
+```Swift
+@DecodableFromDTO(access: .internal)
+struct MyData {...
+```
+> [!NOTE]
+> the private accessor is not available otherwise the data from the DTO to the main type can not be done.
 
+By default the accessor is `public`.
 
 ## Detailed Explanation
 
