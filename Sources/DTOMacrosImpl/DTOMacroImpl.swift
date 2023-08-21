@@ -275,7 +275,7 @@ internal enum MacroUtils {
                     parameterClause: SC.createClosureCallParamters(withName: DTOTokenName.dto),
                     returnClause: ReturnClauseSyntax(varType)
                 ),
-                statements: CodeBlockItemListSyntax(stringLiteral: isOptional ? "\(DTOTokenName.dto).map{\(rootType)(from: $0)}" : "\(rootType)(from: \(DTOTokenName.dto)")
+                statements: CodeBlockItemListSyntax(stringLiteral: isOptional ? "\(DTOTokenName.dto).map{\(rootType)(from: $0)}" : "\(rootType)(from: \(DTOTokenName.dto))")
             ),
             debug: "dto: \(dtoType) optional : \(isOptional)"
         )
